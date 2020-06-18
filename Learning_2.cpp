@@ -1,20 +1,139 @@
-﻿// Learning_2.cpp : Этот файл содержит функцию "main". Здесь начинается и заканчивается выполнение программы.
-//
+﻿#include <iostream>
+#include <thread>
+#include <time.h>
+#include <cmath>
+#include <mutex>
+#include <vector>
+#include <chrono>
+#include <conio.h>
 
-#include <iostream>
+#ifdef _WIN64
+#include <Windows.h>
+#endif
+
+using namespace std;
+
+class CTimer
+{
+	//LARGE_INTEGER t_start, t_end;
+#ifdef linux
+	timespec t_start, t_end;
+#elif _WIN64
+	long long t_start_speed, t_end_speed, t_start_count, t_end_count;
+#endif
+	long long spent_time;
+public:
+	void Start()
+	{
+#ifdef linux
+		clock_gettime(CLOCK_REALTIME, &t_start);
+#elif _WIN64
+		QueryPerformanceFrequency((LARGE_INTEGER*)& t_start_speed);
+		QueryPerformanceCounter((LARGE_INTEGER*)& t_start_count);
+		//QueryPerformanceFrequency((LARGE_INTEGER*)& t_start);
+#endif
+		cout << "Counting started" << endl;
+	}
+	void End()
+	{
+#ifdef linux
+		clock_gettime(CLOCK_REALTIME, &t_end);
+#elif _WIN64
+		QueryPerformanceFrequency((LARGE_INTEGER*)& t_end_speed);
+		QueryPerformanceCounter((LARGE_INTEGER*)& t_end_count);
+		//QueryPerformanceFrequency((LARGE_INTEGER*)& t_end);
+#endif
+		cout << "Counting finished" << endl;
+	}
+	void Count()
+	{
+#ifdef linux
+		spent_time = 1000 * (t_end.tv_sec - t_start.tv_sec) + (t_end.tv_nsec - t_start.tv_nsec) / 1000000;
+#elif _WIN64
+		spent_time = (1000 * t_end_count / t_end_speed) - (1000 * t_start_count / t_start_speed);
+#endif
+		//spent_time = t_end.tv_nsec - t_start.tv_nsec;
+		cout << "Spent " << spent_time << " miliseconds" << endl;
+	}
+
+};
+mutex mu;
+vector<int> vect;
+
+bool prime_detect(int n)
+{
+	for (int i = 2; i < n; ++i) {
+		if (n % i == 0)
+		{
+			return false;
+		}
+	}
+	return true;
+}
+
+void prime_gen()
+{
+	int num, i = 0;
+
+	while (!_kbhit())
+	{
+
+		num = rand() % 10000;
+
+		if (prime_detect(num))
+		{
+			{
+				lock_guard<mutex> guard(mu);
+				//mu.lock();
+				vect.push_back(num);
+
+				cout << "Thread ID: " << this_thread::get_id() << " Num =\t" << num << endl;
+				//mu.unlock();
+			}
+			this_thread::sleep_for(chrono::milliseconds(30));
+			i++;
+		}
+
+	}
+}
 
 int main()
 {
-    std::cout << "Hello World!\n";
+	CTimer timer1, timer2, timer4, timer8;
+	timer1.Start();
+
+	vector<thread*> threads;
+	//vector<thread&> threads;
+	//for (int i = 0; i < 100; i++)
+	while (threads.size() != 100)
+	{
+		thread* th = new thread(prime_gen);
+		threads.push_back(th);
+		//threads.push_back(thread(prime_gen));
+	}
+
+
+	while (!_kbhit())
+	{
+		mu.lock();
+		for (auto it = vect.begin(); it != vect.end(); ++it)
+		{
+			cout << *it << " ";
+		}
+		cout << endl;
+		mu.unlock();
+		this_thread::sleep_for(chrono::seconds(3));
+	}
+
+	for (int i = 0; i < 100; ++i)
+	{
+		threads[i]->join();
+	}
+	timer1.End();
+
+	cout << endl;
+	timer1.Count();
+	cout << endl;
+	cin.get();
+
 }
-
-// Запуск программы: CTRL+F5 или меню "Отладка" > "Запуск без отладки"
-// Отладка программы: F5 или меню "Отладка" > "Запустить отладку"
-
-// Советы по началу работы 
-//   1. В окне обозревателя решений можно добавлять файлы и управлять ими.
-//   2. В окне Team Explorer можно подключиться к системе управления версиями.
-//   3. В окне "Выходные данные" можно просматривать выходные данные сборки и другие сообщения.
-//   4. В окне "Список ошибок" можно просматривать ошибки.
-//   5. Последовательно выберите пункты меню "Проект" > "Добавить новый элемент", чтобы создать файлы кода, или "Проект" > "Добавить существующий элемент", чтобы добавить в проект существующие файлы кода.
-//   6. Чтобы снова открыть этот проект позже, выберите пункты меню "Файл" > "Открыть" > "Проект" и выберите SLN-файл.
