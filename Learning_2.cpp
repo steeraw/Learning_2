@@ -5,7 +5,8 @@
 #include <mutex>
 #include <vector>
 #include <chrono>
-#include <conio.h>
+#include <sys/select.h>
+//#include <conio.h>
 
 #ifdef _WIN64
 #include <Windows.h>
@@ -59,7 +60,24 @@ public:
 };
 mutex mu;
 vector<int> vect;
+#ifdef linux
+int kbhit()
+{
+    struct timeval tv;
+    fd_set read_fd;
 
+    tv.tv_sec = 0;
+    tv.tv_usec = 0;
+    FD_ZERO(&read_fd);
+    FD_SET(0, &read_fd);
+    if(select(1, &read_fd, NULL, NULL, &tv) == -1)
+        return 0;
+    if(FD_ISSET(0, &read_fd))
+        return 1;
+
+    return 0;
+}
+#endif
 bool prime_detect(int n)
 {
 	for (int i = 2; i < n; ++i) {
@@ -75,7 +93,7 @@ void prime_gen()
 {
 	int num, i = 0;
 
-	while (!_kbhit())
+	while (!kbhit())
 	{
 
 		num = rand() % 10000;
@@ -90,7 +108,7 @@ void prime_gen()
 				cout << "Thread ID: " << this_thread::get_id() << " Num =\t" << num << endl;
 				//mu.unlock();
 			}
-			this_thread::sleep_for(chrono::milliseconds(30));
+			this_thread::sleep_for(chrono::milliseconds(1000));
 			i++;
 		}
 
@@ -113,7 +131,7 @@ int main()
 	}
 
 
-	while (!_kbhit())
+	while (!kbhit())
 	{
 		mu.lock();
 		for (auto it = vect.begin(); it != vect.end(); ++it)
@@ -122,7 +140,7 @@ int main()
 		}
 		cout << endl;
 		mu.unlock();
-		this_thread::sleep_for(chrono::seconds(3));
+		this_thread::sleep_for(chrono::seconds(2));
 	}
 
 	for (int i = 0; i < 100; ++i)

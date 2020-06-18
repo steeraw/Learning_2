@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0)
 project(Learning)
-set(SOURCE thread.cpp)
+set(SOURCE Learning_2.cpp)
 add_executable(prog ${SOURCE})
 target_link_libraries(prog pthread)
