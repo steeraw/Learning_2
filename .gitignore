@@ -1,0 +1,9 @@
+cmake-build-*
+.vs
+.idea
+prog
+Debug
+x64
+*.sln
+*.vcxproj
+*.vcxproj.*
