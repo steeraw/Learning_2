@@ -6,6 +6,9 @@
 #include <vector>
 #include <chrono>
 #include <sys/select.h>
+#include <fstream>
+#include <string>
+#include <stdio.h>
 //#include <conio.h>
 
 #ifdef _WIN64
@@ -59,7 +62,7 @@ public:
 
 };
 mutex mu;
-vector<int> vect;
+//vector<int> vect;
 #ifdef linux
 int kbhit()
 {
@@ -88,27 +91,55 @@ bool prime_detect(int n)
 	}
 	return true;
 }
-
+int flag = 0;
+fstream fs;
+string path = "File.txt";
+//FILE *MyFile;
 void prime_gen()
 {
 	int num, i = 0;
 
-	while (!kbhit())
+	while (flag == 0)
 	{
 
-		num = rand() % 10000;
+		num = rand() % 100000000;
 
 		if (prime_detect(num))
 		{
 			{
 				lock_guard<mutex> guard(mu);
 				//mu.lock();
-				vect.push_back(num);
+				//vect.push_back(num);
 
-				cout << "Thread ID: " << this_thread::get_id() << " Num =\t" << num << endl;
+				/*MyFile = fopen("File.txt", "a");
+				if(MyFile != NULL)
+                {
+				    fscanf(MyFile, "%d", num);
+
+                }
+				else
+                {
+				    printf("error - file not found\n");
+                }*/
+
+				fs.open(path, fstream::out | fstream::app);
+				if(!fs.is_open())
+                {
+
+                    cout << "file not found" << endl;
+                    break;
+                }
+				else
+                {
+				    //cout << "opened" << endl;
+                    fs << num << ' ';
+				}
+				fs.close();
+
+
 				//mu.unlock();
 			}
-			this_thread::sleep_for(chrono::milliseconds(1000));
+
 			i++;
 		}
 
@@ -119,11 +150,13 @@ int main()
 {
 	CTimer timer1, timer2, timer4, timer8;
 	timer1.Start();
+    char str[10000];
 
 	vector<thread*> threads;
 	//vector<thread&> threads;
 	//for (int i = 0; i < 100; i++)
-	while (threads.size() != 100)
+	int size = 20;
+	while (threads.size() != size)
 	{
 		thread* th = new thread(prime_gen);
 		threads.push_back(th);
@@ -131,19 +164,52 @@ int main()
 	}
 
 
-	while (!kbhit())
+	while (flag == 0)
 	{
 		mu.lock();
-		for (auto it = vect.begin(); it != vect.end(); ++it)
+		/*for (auto it = vect.begin(); it != vect.end(); ++it)
 		{
 			cout << *it << " ";
+		}*/
+		fs.open(path, fstream::in);
+		if(fs.is_open())
+        {
+		    char ch;
+		    while (fs.get(ch))
+            {
+		        cout << ch;
+            }
+        }
+		else
+        {
+		    cout << "error: file not found" << endl;
+            break;
 		}
+		fs.close();
+        /*MyFile = fopen("File.txt", "a");
+        if(MyFile != NULL)
+        {
+            while(fgets(str, 10000, MyFile))
+                fprintf(stdout, "%d", str);
+
+
+        }
+        else
+        {
+            printf("error - file not found\n");
+        }*/
+
+
 		cout << endl;
 		mu.unlock();
 		this_thread::sleep_for(chrono::seconds(2));
+		if(kbhit())
+        {
+		    flag = 1;
+        }
 	}
 
-	for (int i = 0; i < 100; ++i)
+	for (int i = 0; i < size; ++i)
 	{
 		threads[i]->join();
 	}
@@ -152,6 +218,10 @@ int main()
 	cout << endl;
 	timer1.Count();
 	cout << endl;
-	cin.get();
+
+	//cin.get();
+    fs.open(path, fstream::out);
+    fs.clear();
+    fs.close();
 
 }
