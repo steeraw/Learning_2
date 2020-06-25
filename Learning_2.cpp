@@ -9,6 +9,7 @@
 #include <fstream>
 #include <string>
 #include <stdio.h>
+#include "library/library.h"
 //#include <conio.h>
 
 #ifdef _WIN64
@@ -17,52 +18,8 @@
 
 using namespace std;
 
-class CTimer
-{
-	//LARGE_INTEGER t_start, t_end;
-#ifdef linux
-	timespec t_start, t_end;
-#elif _WIN64
-	long long t_start_speed, t_end_speed, t_start_count, t_end_count;
-#endif
-	long long spent_time;
-public:
-	void Start()
-	{
-#ifdef linux
-		clock_gettime(CLOCK_REALTIME, &t_start);
-#elif _WIN64
-		QueryPerformanceFrequency((LARGE_INTEGER*)& t_start_speed);
-		QueryPerformanceCounter((LARGE_INTEGER*)& t_start_count);
-		//QueryPerformanceFrequency((LARGE_INTEGER*)& t_start);
-#endif
-		cout << "Counting started" << endl;
-	}
-	void End()
-	{
-#ifdef linux
-		clock_gettime(CLOCK_REALTIME, &t_end);
-#elif _WIN64
-		QueryPerformanceFrequency((LARGE_INTEGER*)& t_end_speed);
-		QueryPerformanceCounter((LARGE_INTEGER*)& t_end_count);
-		//QueryPerformanceFrequency((LARGE_INTEGER*)& t_end);
-#endif
-		cout << "Counting finished" << endl;
-	}
-	void Count()
-	{
-#ifdef linux
-		spent_time = 1000 * (t_end.tv_sec - t_start.tv_sec) + (t_end.tv_nsec - t_start.tv_nsec) / 1000000;
-#elif _WIN64
-		spent_time = (1000 * t_end_count / t_end_speed) - (1000 * t_start_count / t_start_speed);
-#endif
-		//spent_time = t_end.tv_nsec - t_start.tv_nsec;
-		cout << "Spent " << spent_time << " miliseconds" << endl;
-	}
-
-};
 mutex mu;
-//vector<int> vect;
+
 #ifdef linux
 int kbhit()
 {
@@ -92,116 +49,81 @@ bool prime_detect(int n)
 	return true;
 }
 int flag = 0;
-fstream fs;
-string path = "File.txt";
-//FILE *MyFile;
+//string path = "File.txt";
+int fcount = 0;
+FILE *MyFileW = fopen("File.txt", "wb");
 void prime_gen()
 {
-	int num, i = 0;
-
+	int i = 0;
 	while (flag == 0)
 	{
-
-		num = rand() % 100000000;
-
+		int num = rand() % 100000000;
 		if (prime_detect(num))
 		{
-			{
-				lock_guard<mutex> guard(mu);
-				//mu.lock();
-				//vect.push_back(num);
-
-				/*MyFile = fopen("File.txt", "a");
-				if(MyFile != NULL)
+                lock_guard<mutex> guard(mu);
+				if(MyFileW != nullptr)
                 {
-				    fscanf(MyFile, "%d", num);
-
+				    fcount += fwrite(&num, sizeof(int), 1, MyFileW);
+                    fflush(MyFileW);
                 }
 				else
                 {
 				    printf("error - file not found\n");
-                }*/
-
-				fs.open(path, fstream::out | fstream::app);
-				if(!fs.is_open())
-                {
-
-                    cout << "file not found" << endl;
-                    break;
                 }
-				else
-                {
-				    //cout << "opened" << endl;
-                    fs << num << ' ';
-				}
-				fs.close();
-
-
-				//mu.unlock();
-			}
-
 			i++;
 		}
-
 	}
 }
 
 int main()
 {
-	CTimer timer1, timer2, timer4, timer8;
+	CTimer timer1;
 	timer1.Start();
-    char str[10000];
-
+    vector<int> numbers;
 	vector<thread*> threads;
-	//vector<thread&> threads;
-	//for (int i = 0; i < 100; i++)
 	int size = 20;
+//	int total_read = 0;
 	while (threads.size() != size)
 	{
 		thread* th = new thread(prime_gen);
 		threads.push_back(th);
-		//threads.push_back(thread(prime_gen));
 	}
-
 
 	while (flag == 0)
 	{
-		mu.lock();
-		/*for (auto it = vect.begin(); it != vect.end(); ++it)
-		{
-			cout << *it << " ";
-		}*/
-		fs.open(path, fstream::in);
-		if(fs.is_open())
-        {
-		    char ch;
-		    while (fs.get(ch))
+//        int rcount = 0;
+//        while(rcount != fcount)
+//        {
+            FILE *MyFileR = fopen("File.txt", "rb");
+            if (MyFileR != nullptr)
             {
-		        cout << ch;
+                int fnum;
+//                fseek(MyFileR, total_read, SEEK_SET);
+                lock_guard<mutex> guard(mu);
+                {
+                    while (!feof(MyFileR))
+                    {
+                        int ret = fread(&fnum, sizeof(int), 1, MyFileR);
+
+                        if (ret > 0)
+                        {
+//                            total_read += ret * sizeof(int);
+                            printf("%d ", fnum);
+                        }
+                        else
+                            break;
+                    }
+                    fclose(MyFileR);
+                }
             }
-        }
-		else
-        {
-		    cout << "error: file not found" << endl;
-            break;
-		}
-		fs.close();
-        /*MyFile = fopen("File.txt", "a");
-        if(MyFile != NULL)
-        {
-            while(fgets(str, 10000, MyFile))
-                fprintf(stdout, "%d", str);
-
-
-        }
-        else
-        {
-            printf("error - file not found\n");
-        }*/
-
-
+            else
+            {
+                printf("error - file not found\n");
+            }
+//            rcount++;
+//        }
+//        total_read = 0;
 		cout << endl;
-		mu.unlock();
 		this_thread::sleep_for(chrono::seconds(2));
 		if(kbhit())
         {
@@ -218,10 +140,5 @@ int main()
 	cout << endl;
 	timer1.Count();
 	cout << endl;
-
-	//cin.get();
-    fs.open(path, fstream::out);
-    fs.clear();
-    fs.close();
-
+    fclose(MyFileW);
 }
